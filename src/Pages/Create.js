@@ -11,32 +11,15 @@ const Create = () => {
    const [username, setUsername] = useState("");
    const [loading, setLoading] = useState(true);
    const [message, setMessage] = useState("");
-   const [surveys, setSurveys] = useState([]);
-   const [numberOfVotes, setNumberOfVotes] = useState([]);
+   const [content, setContent] = useState("");
+   const [options, setOptions] = useState([]);
+   const [optionContent, setOptionContent] = useState("");
  
    useEffect(() => {
        const check = async() => {
            try {
                const user = await userService.getUserFromToken(localStorage.getItem("token"));
                setUsername(user);
-               const response = await services.getAllSurveys(localStorage.getItem("token"));
-               const votes = [];
-               for(let survey of response) {
-                   const temp = [...survey.options];
-                   temp.sort((a, b) => {
-                       if(parseInt(a.id) > parseInt(b.id)) return 1;
-                       else return -1;
-                   });
-                   let cnt = 0;
-                   for(let item of temp) {
-                       cnt += item.voters.length;
-                   }
-                   votes.push({id: survey.id, count: cnt});
-                   survey.options = temp;
-               }
-               console.log(votes);
-               setNumberOfVotes(votes);
-               setSurveys(response);
            }
            catch(err) {
                window.location = "/";
@@ -48,92 +31,54 @@ const Create = () => {
        }  
        check();
    },[]);
- 
-   const printSurveys = (props) => {
- 
-       const addVote = async(optionId) => {
-           try {
-               setMessage("Adding Your Vote, Please wait ...");
-               const data = { name: username, optionId, surveyId: props.id };
-               await services.addVote(data, localStorage.getItem("token"));
-               const result = await services.getAllSurveys(localStorage.getItem("token"));
-               const votes = [];
-               for(let survey of result) {
-                   const temp = [...survey.options];
-                   temp.sort((a, b) => {
-                       if(parseInt(a.id) > parseInt(b.id)) return 1;
-                       else return -1;
-                   });
-                   let cnt = 0;
-                   for(let item of temp) {
-                       cnt += item.voters.length;
-                   }
-                   votes.push({id: survey.id, count: cnt});
-                   survey.options = temp;
-               }
-               setSurveys(result);
-               setNumberOfVotes(votes);
-               setMessage("Vote Added Successfully");
+
+   const addSurvey = async() => {
+       try {
+           if(content && options.length >= 1 && username) {
+                setMessage("Posting Survey, Please wait...");
+                const data = {author: username, content, options};
+                services.addSurvey(data, localStorage.getItem("token"));
+                setMessage("Survey Added Successfully");
            }
-           catch(err) {
-               console.log(err);
+           else {
+               setMessage("Invalid Entries, Atleast option must be present and question can't be empty");
            }
        }
- 
-       const deleteSurvey = async() => {
-           try {
-               setMessage("Deleting Survey, Please wait ...");
-               const data = { username: props.author, surveyId: props.id };
-               services.deleteSurvey(data, localStorage.getItem("token"));
-               const response = await services.getAllSurveys(localStorage.getItem("token"));
-               for(let survey of response) {
-                   const temp = [...survey.options];
-                   temp.sort((a, b) => {
-                       if(parseInt(a.id) > parseInt(b.id)) return 1;
-                       else return -1;
-                   });
-                   survey.options = temp;
-               }
-               setSurveys(response);
-               setMessage("Survey Deleted Successfully");
-           }
-           catch(err) {
-               console.log(err);
-           }
+       catch(err) {
+           console.log(err);
        }
+   }
  
-       const getWidthPercentage = (count) => {
-           let idx = numberOfVotes.findIndex((item) => parseInt(item.id) === parseInt(props.id));
-           if(count === 0) return 0;
-           // let width = window.innerWidth - 452;
-           return (300 * count)/ numberOfVotes[idx].count;
-       }
- 
-       const printOptions = (props) => {
- 
-           return (
-               <div
-                   className="block expand"
-                   key = {props.content}
-                   onClick={() => addVote(props.id)}
-               >
-               {/* <div className = "option" style ={{width: "0.25"}}> {props.content} ({props.voters.length}) </div> */}
-               <div className = "option" style = {{width: getWidthPercentage(props.voters.length)}}> {props.content} ({props.voters.length}) </div>
-               </div>
-           )
-       }
- 
-       return (<div className = "survey mt-5" key = {props.id}>
-           <div> <h4 style={{color: "white"}}> {props.content} </h4> </div>
-           <div> {props.options.map(printOptions)}</div>
-           <div style = {(username != props.author) ? {display: "none"} : null} >
-               <button
-                   className="btn btn-dark expand mt-2" 
-                   onClick={() => deleteSurvey()}>
-                   Delete
-               </button>
-           </div>
-       </div>);
+   const printOptions = (props) => {
+
+        const deleteOption = () => {
+            const idx = options.findIndex((option) => (option.content === props.content));
+            let temp = [...options];
+            temp.splice(idx, 1);
+            setOptions(temp); 
+            setMessage("");
+        }
+
+        return (
+            <div className = "block" key = {props.content} style = {{padding: "5px 10px"}}>
+               {props.content}
+            <span className = "remove" onClick = {() => deleteOption()}> remove </span>
+            </div>
+        )
+   }
+
+   const addOption = () => {
+        const idx = options.findIndex((option) => (option.content === optionContent));
+        if(idx === (-1) && optionContent) {
+            let temp = [...options];
+            temp.push({content: optionContent});
+            setOptions(temp);
+            setMessage("");
+        }
+        else {
+            setMessage("Invalid Option: Option Already Exists, or Option is Empty");
+        }
+        setOptionContent("");
    }
  
    const logout = () => {
@@ -143,19 +88,52 @@ const Create = () => {
  
    return (loading) ? <Loader /> :
    <div className = "container upper-margin text-center">
-       <div className = "mt-3">
-           <h1> Surveys </h1>
-       </div>
-       <div>
-       <button className="btn btn-dark expand mt-2 mr-4" onClick={() => window.location = "/create"}> Create </button>
-       <button className="btn btn-dark expand mt-2" onClick={() => logout()}> Logout </button>
-       </div>
-       <div className = "mt-3">
-           {message}
-       </div>
-       <div className = "mt-3 mb-5">
-           {surveys.map(printSurveys)}
-       </div>
+        <div className = "mt-3">
+            <h1> Create Your Survey here! </h1>
+        </div>
+        <div className = "mt-3">
+            <button className="btn btn-dark expand mt-2 mr-4" onClick={() => window.location = "/Home"}> Home </button>
+            <button className="btn btn-dark expand mt-2" onClick={() => logout()}> Logout </button>
+        </div>
+        <div className = "mt-3">
+            <input 
+                type="text" 
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Question of the Survey" 
+                autoComplete="off" 
+                style={{width: "85%"}}
+                className="mt-3 pt-2 pb-2 pr-2 pl-2"
+                required 
+            />
+        </div>
+        <div className = "mt-3">
+            <h3> Options of Survey </h3>
+        </div>
+        <div className = "mt-3">
+            {options.map(printOptions)}
+        </div>
+        <div className = "mt-3">
+            <input 
+                type="text" 
+                value={optionContent}
+                onChange={(e) => setOptionContent(e.target.value)}
+                placeholder="Option for the survey" 
+                autoComplete="off" 
+                style={{width: "75%"}}
+                className="mt-3 pt-2 pb-2 pr-2 pl-2"
+                required 
+            />
+        </div>
+        <div className = "mt-3">
+            <button className="btn btn-dark expand mt-2" onClick={() => addOption()}> Add </button>
+        </div>
+        <div className = "mt-3">
+            {message}
+        </div>
+        <div className = "mt-3">
+            <button className="btn btn-dark expand mt-2" onClick={() => addSurvey()}> Post Survey </button>
+        </div>
        <Footer />
    </div>
 }

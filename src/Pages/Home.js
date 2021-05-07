@@ -34,7 +34,6 @@ const Home = () => {
                    votes.push({id: survey.id, count: cnt});
                    survey.options = temp;
                }
-               console.log(votes);
                setNumberOfVotes(votes);
                setSurveys(response);
            }
@@ -55,8 +54,7 @@ const Home = () => {
            try {
                setMessage("Adding Your Vote, Please wait ...");
                const data = { name: username, optionId, surveyId: props.id };
-               await services.addVote(data, localStorage.getItem("token"));
-               const result = await services.getAllSurveys(localStorage.getItem("token"));
+               const result = await services.addVote(data, localStorage.getItem("token"));
                const votes = [];
                for(let survey of result) {
                    const temp = [...survey.options];
@@ -82,20 +80,9 @@ const Home = () => {
  
        const deleteSurvey = async() => {
            try {
-               setMessage("Deleting Survey, Please wait ...");
                const data = { username: props.author, surveyId: props.id };
                services.deleteSurvey(data, localStorage.getItem("token"));
-               const response = await services.getAllSurveys(localStorage.getItem("token"));
-               for(let survey of response) {
-                   const temp = [...survey.options];
-                   temp.sort((a, b) => {
-                       if(parseInt(a.id) > parseInt(b.id)) return 1;
-                       else return -1;
-                   });
-                   survey.options = temp;
-               }
-               setSurveys(response);
-               setMessage("Survey Deleted Successfully");
+               window.location = "/home";
            }
            catch(err) {
                console.log(err);
@@ -105,8 +92,8 @@ const Home = () => {
        const getWidthPercentage = (count) => {
            let idx = numberOfVotes.findIndex((item) => parseInt(item.id) === parseInt(props.id));
            if(count === 0) return 0;
-           // let width = window.innerWidth - 452;
-           return (300 * count)/ numberOfVotes[idx].count;
+        //    let width = window.innerWidth - 452;
+           return (2*1082 * count)/ numberOfVotes[idx].count;
        }
  
        const printOptions = (props) => {
@@ -117,7 +104,6 @@ const Home = () => {
                    key = {props.content}
                    onClick={() => addVote(props.id)}
                >
-               {/* <div className = "option" style ={{width: "0.25"}}> {props.content} ({props.voters.length}) </div> */}
                <div className = "option" style = {{width: getWidthPercentage(props.voters.length)}}> {props.content} ({props.voters.length}) </div>
                </div>
            )
